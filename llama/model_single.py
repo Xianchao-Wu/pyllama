@@ -34,11 +34,11 @@ class RMSNorm(torch.nn.Module):
         return output * self.weight
 
 
-def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
-    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0): # 128, 2048, 10000.0
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim)) # frequencies
     t = torch.arange(end, device=freqs.device)  # type: ignore
     freqs = torch.outer(t, freqs).float()  # type: ignore
-    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
+    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64, [2048, 64]
     return freqs_cis
 
 
@@ -158,17 +158,17 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, layer_id: int, args: ModelArgs):
+    def __init__(self, layer_id: int, args: ModelArgs): # layer_id=0, args=ModelArgs(dim=4096, n_layers=32, n_heads=32, vocab_size=32000, multiple_of=256, norm_eps=1e-06, max_batch_size=1, max_seq_len=1024)
         super().__init__()
-        self.n_heads = args.n_heads
-        self.dim = args.dim
-        self.head_dim = args.dim // args.n_heads
+        self.n_heads = args.n_heads # 32
+        self.dim = args.dim # 4096
+        self.head_dim = args.dim // args.n_heads # 128
         self.attention = Attention(args)
         self.feed_forward = FeedForward(
             dim=args.dim, hidden_dim=4 * args.dim, multiple_of=args.multiple_of
-        )
+            ) # w1: 4096 -> 11008; w2: 11008 -> 4096; w3: 4096 -> 11008
         self.layer_id = layer_id
-        self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)
+        self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps) # root mean square layer norm
         self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)
 
     def forward(
@@ -188,22 +188,22 @@ class TransformerBlock(nn.Module):
 class Transformer(nn.Module):
     def __init__(self, params: ModelArgs):
         super().__init__()
-        self.params = params
-        self.vocab_size = params.vocab_size
-        self.n_layers = params.n_layers
+        self.params = params # ModelArgs(dim=4096, n_layers=32, n_heads=32, vocab_size=32000, multiple_of=256, norm_eps=1e-06, max_batch_size=1, max_seq_len=1024)
+        self.vocab_size = params.vocab_size # 32000
+        self.n_layers = params.n_layers # 32 层 transformer decoder
 
-        self.tok_embeddings = nn.Embedding(params.vocab_size, params.dim)
+        self.tok_embeddings = nn.Embedding(params.vocab_size, params.dim) # Embedding(32000, 4096)
 
         self.layers = torch.nn.ModuleList()
         for layer_id in range(params.n_layers):
             self.layers.append(TransformerBlock(layer_id, params))
 
         self.norm = RMSNorm(params.dim, eps=params.norm_eps)
-        self.output = nn.Linear(params.dim, params.vocab_size, bias=False)
+        self.output = nn.Linear(params.dim, params.vocab_size, bias=False) # 4096 -> 32000
 
         self.freqs_cis = precompute_freqs_cis(
             self.params.dim // self.params.n_heads, self.params.max_seq_len * 2
-        )
+        ) # (128, 1024*2)
 
     @torch.inference_mode()
     def forward(self, tokens: torch.Tensor, start_pos: int):

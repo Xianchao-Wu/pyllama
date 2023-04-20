@@ -15,16 +15,16 @@ class Tokenizer:
     def __init__(self, model_path: str):
         # reload tokenizer
         assert os.path.isfile(model_path), model_path
-        self.sp_model = SentencePieceProcessor(model_file=model_path)
+        self.sp_model = SentencePieceProcessor(model_file=model_path) # NOTE
         #print(f"loaded SentencePiece model from {model_path}")
-
+        # <sentencepiece.SentencePieceProcessor; proxy of <Swig Object of type 'sentencepiece::SentencePieceProcessor *' at 0x7f3d41a2bd50> >
         # BOS / EOS token IDs
-        self.n_words: int = self.sp_model.vocab_size()
-        self.bos_id: int = self.sp_model.bos_id()
-        self.eos_id: int = self.sp_model.eos_id()
-        self.pad_id: int = self.sp_model.pad_id()
+        self.n_words: int = self.sp_model.vocab_size() # 32000
+        self.bos_id: int = self.sp_model.bos_id() # 1
+        self.eos_id: int = self.sp_model.eos_id() # 2
+        self.pad_id: int = self.sp_model.pad_id() # -1
         #print(f"#words: {self.n_words} - BOS ID: {self.bos_id} - EOS ID: {self.eos_id}")
-        assert self.sp_model.vocab_size() == self.sp_model.get_piece_size()
+        assert self.sp_model.vocab_size() == self.sp_model.get_piece_size() # both are 32000, okay
 
     def encode(self, s: str, bos: bool, eos: bool) -> List[int]:
         assert type(s) is str
