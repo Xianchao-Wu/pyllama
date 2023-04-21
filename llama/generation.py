@@ -10,8 +10,8 @@ from llama.tokenizer import Tokenizer
 
 class LLaMA:
     def __init__(self, model, tokenizer: Tokenizer):
-        self.model = model
-        self.tokenizer = tokenizer
+        self.model = model # <class 'llama.model_single.Transformer'>
+        self.tokenizer = tokenizer # <class 'llama.tokenizer.Tokenizer'>
         
     def _should_stop(self, tokens, prompt_tokens, stop_ids, stop_words):
         """credits go to: https://github.com/galatolofederico/vanilla-llama"""
